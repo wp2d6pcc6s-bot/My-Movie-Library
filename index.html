@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M Library V47 (The Silver Bullet)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- PRO THEME --- */
+        :root { --bg: #0f0f0f; --card: #1a1a1a; --highlight: #e50914; }
+        body { background-color: var(--bg); color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow-x: hidden; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        .card { 
+            background: var(--card); border-radius: 12px; overflow: hidden; 
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1px solid #2a2a2a; position: relative;
+        }
+        .card:hover { transform: translateY(-5px) scale(1.02); border-color: #555; box-shadow: 0 15px 30px rgba(0,0,0,0.5); z-index: 10; }
+        
+        .badge { 
+            font-size: 0.7rem; font-weight: 800; letter-spacing: 0.5px;
+            padding: 3px 8px; border-radius: 4px; margin-right: 4px; 
+            display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .badge-4k { background: #000; color: #fff; border: 1px solid #444; } 
+        .badge-blu { background: #0066cc; color: white; border: 1px solid #0055aa; }
+        .badge-apple { background: #e0e0e0; color: #000; border: 1px solid #fff; } 
+        .badge-dvd { background: #f1c40f; color: black; }
+
+        .filter-btn {
+            padding: 8px 16px; border-radius: 9999px; font-weight: 600;
+            background: #2a2a2a; color: #ccc; transition: all 0.2s; border: 1px solid #444; white-space: nowrap;
+        }
+        .filter-btn:hover { background: #3a3a3a; }
+        .filter-btn.bg-red-600 { box-shadow: 0 4px 10px rgba(229, 9, 20, 0.4); }
+
+        .nav-btn {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            background: rgba(0,0,0,0.5); color: white; border: 1px solid rgba(255,255,255,0.1);
+            width: 50px; height: 50px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.2s; z-index: 60; backdrop-filter: blur(5px);
+        }
+        .nav-btn:hover { background: white; color: black; scale: 1.1; }
+        .nav-prev { left: 20px; } .nav-next { right: 20px; }
+
+        .spinner { border: 3px solid #333; border-top: 3px solid var(--highlight); border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 40px auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        #modalContent { display: flex; flex-direction: column; max-height: calc(100vh - 4rem); overflow-y: hidden; }
+        #m-banner-backdrop { width: 100%; height: 450px; background-size: cover; background-position: center top; position: relative; z-index: 10; }
+        #m-banner-backdrop:after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 40%, #141414 100%); }
+        .modal-body { display: flex; padding: 0 4rem; z-index: 20; position: relative; padding-top: 2rem; }
+        .modal-content-scroll { overflow-y: auto; max-height: 40vh; padding-right: 1.5rem; -webkit-overflow-scrolling: touch; }
+        
+        @media (max-width: 768px) {
+            #modalContent { min-height: 100vh; border-radius: 0; max-height: none; }
+            #m-banner-backdrop { height: 250px; } 
+            .modal-body { flex-direction: column; padding: 0 1rem; margin-top: -100px; padding-top: 0; }
+            .modal-content-scroll { max-height: none; overflow-y: visible; padding-right: 0; }
+            .nav-prev, .nav-next { display: none !important; }
+            #m-poster-container { width: 50%; max-width: 200px; margin: 0 auto 1.5rem auto; }
+        }
+        
+        @media (min-width: 769px) {
+            #modal { align-items: stretch; padding: 2rem 0; }
+            #m-poster-container { width: 250px; flex-shrink: 0; position: relative; margin-right: 2.5rem; top: 0; height: auto; }
+            #m-poster { width: 100%; height: auto; object-fit: contain; border-radius: 12px; transform: translateY(0px); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7); } 
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+    <header class="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-red-600 rounded flex items-center justify-center font-bold text-xl shadow-lg shadow-red-900/50">M</div>
+            <h1 class="text-3xl md:text-4xl font-black tracking-tighter text-white">LIBRARY <span id="count" class="text-lg text-gray-500 font-medium ml-2 opacity-0 transition-opacity duration-500"></span></h1>
+        </div>
+        <div class="flex items-center w-full md:w-auto gap-4">
+            <div class="relative w-full md:w-40">
+                <select id="sort" onchange="sortMovies(this.value)" class="w-full bg-[#222] text-white pl-3 pr-8 py-3 rounded-full border border-[#333] focus:border-red-600 outline-none appearance-none cursor-pointer">
+                    <option value="title_asc">Title (A-Z)</option>
+                    <option value="year_desc">Year (Newest)</option>
+                    <option value="rating_desc">Rating (High)</option>
+                </select>
+                <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"></i>
+            </div>
+            <div class="relative w-full md:w-96 group">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-white transition-colors"></i>
+                <input type="text" id="search" placeholder="Search..." class="w-full bg-[#222] text-white pl-12 pr-6 py-3 rounded-full border border-[#333] focus:border-red-600 focus:bg-[#2a2a2a] outline-none shadow-inner">
+            </div>
+        </div>
+    </header>
+
+    <div id="filters" class="max-w-[1600px] mx-auto flex gap-4 mb-8 justify-center overflow-x-auto pb-2">
+        <button id="btn-all" onclick="filterMovies('ALL', this)" class="filter-btn bg-red-600 text-white shadow-lg">ALL</button>
+        <button id="btn-4k" onclick="filterMovies('4K', this)" class="filter-btn">4K</button>
+        <button id="btn-blu" onclick="filterMovies('BLU', this)" class="filter-btn">BLU-RAY</button>
+        <button id="btn-apple" onclick="filterMovies('APPLE', this)" class="filter-btn">DIGITAL</button>
+    </div>
+
+    <div id="grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-6 max-w-[1600px] mx-auto"></div>
+    <div id="loader" class="text-center py-20 hidden"><div class="spinner"></div></div>
+    <div id="status-log">Initializing V47 (Silver Bullet)...</div>
+
+    <div id="modal" class="fixed inset-0 bg-black/95 hidden z-50 flex justify-center items-center overflow-y-auto backdrop-blur-md transition-opacity duration-300" onclick="closeModal()">
+        <button class="nav-btn nav-prev hidden md:flex" onclick="event.stopPropagation(); changeMovie(-1)"><i class="fas fa-chevron-left text-xl"></i></button>
+        <button class="nav-btn nav-next hidden md:flex" onclick="event.stopPropagation(); changeMovie(1)"><i class="fas fa-chevron-right text-xl"></i></button>
+        <div id="modalContent" class="bg-[#141414] w-full max-w-6xl md:rounded-2xl shadow-2xl border border-[#333] relative transform transition-all duration-300" onclick="event.stopPropagation()">
+            <div id="m-banner-backdrop"><div class="relative z-20 h-full flex flex-col justify-end p-6 md:p-12"><button onclick="closeModal()" class="self-end text-gray-400 hover:text-white mb-4 absolute top-4 right-4 z-50 bg-black/50 w-10 h-10 rounded-full flex items-center justify-center backdrop-blur hover:bg-red-600 transition-colors"><i class="fas fa-times"></i></button></div></div>
+            <div class="modal-body">
+                <div id="m-poster-container" class="relative">
+                    <img id="m-poster" class="w-full h-auto object-contain rounded-xl shadow-2xl border border-[#333]">
+                    <div class="flex justify-between md:hidden mt-4">
+                        <button class="text-gray-400 hover:text-white px-3 py-1 rounded border border-[#333] bg-black/50 backdrop-blur" onclick="event.stopPropagation(); changeMovie(-1)">Prev</button>
+                        <button class="text-gray-400 hover:text-white px-3 py-1 rounded border border-[#333] bg-black/50 backdrop-blur" onclick="event.stopPropagation(); changeMovie(1)">Next</button>
+                    </div>
+                </div>
+                <div class="w-full flex-grow relative z-10 modal-content-wrapper">
+                    <div id="m-badges" class="flex flex-wrap gap-2 mb-4"></div>
+                    <h2 id="m-title" class="text-4xl md:text-6xl font-black text-white leading-tight mb-2 tracking-tight"></h2>
+                    <div class="flex items-center gap-4 text-gray-400 font-medium text-sm md:text-base mb-8">
+                        <span id="m-year" class="border border-gray-600 px-2 py-0.5 rounded text-sm"></span>
+                        <span id="m-runtime" class="text-sm"></span>
+                        <span class="text-yellow-500 text-sm"><i class="fas fa-star mr-1"></i><span id="m-rating"></span></span>
+                    </div>
+                    <div class="modal-content-scroll flex-grow">
+                        <div class="mb-6"><h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Synopsis</h3><p id="m-overview" class="text-gray-300 text-base leading-relaxed max-w-3xl"></p></div>
+                        <div class="grid grid-cols-2 gap-8 mb-6 border-t border-gray-800 pt-4 max-w-3xl">
+                            <div><h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Director</h3><p id="m-director" class="text-white font-medium text-base"></p></div>
+                            <div><h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Genre</h3><p id="m-genre" class="text-white font-medium text-base"></p></div>
+                            <div><h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Writer</h3><p id="m-writer" class="text-white font-medium text-base"></p></div>
+                            <div><h3 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Composer</h3><p id="m-composer" class="text-white font-medium text-base"></p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA LINK ---
+        const SHEET_URL = 'https://gist.githubusercontent.com/wp2d6pcc6s-bot/047fe908f795a09ff499ccdd8c11f751/raw/a08bc9cd4b34e1d392621c29fa3ebb29bb062aff/Movie%2520List%2520For%2520GitHub%2520-%2520MyMovieCollection_with_format_columns%2520(2).csv'; 
+        const API_KEY = '89269415b55c96fe95a989191b8cb225';
+        // -----------------
+
+        let allMovies = [], masterFilterList = [], activeList = [], visibleList = [];
+        let displayCount = 0, currentIndex = -1;
+        let isLoading = false;
+        const BATCH = 30;
+        const statusLog = document.getElementById('status-log');
+        
+        init();
+
+        function init() {
+            statusLog.innerText = "Downloading fresh data...";
+            fetch(SHEET_URL + '?t=' + Date.now())
+                .then(r => r.ok ? r.text() : Promise.reject(r.status))
+                .then(csvText => {
+                    Papa.parse(csvText, {
+                        header: false, skipEmptyLines: true,
+                        complete: (res) => {
+                            if(res.data && res.data.length > 0) process6ColumnData(res.data);
+                            else statusLog.innerText = "Error: CSV Empty";
+                        }
+                    });
+                })
+                .catch(e => statusLog.innerText = "Error loading data. Check URL.");
+        }
+
+        // --- V47: 6-COLUMN PARSER (ID SUPPORT) ---
+        function normalizeKey(title) {
+            if (!title) return '';
+            let t = title.toLowerCase();
+            t = t.replace(/&/g, 'and');
+            if (t.endsWith(', the')) t = 'the ' + t.replace(', the', '');
+            if (t.endsWith(', a')) t = 'a ' + t.replace(', a', '');
+            t = t.replace(/^(the|a|an)\s+/g, '');
+            return t.replace(/[^a-z0-9]/g, '');
+        }
+
+        function extractCleanYear(rawYear) {
+            if (!rawYear) return "";
+            const match = rawYear.toString().match(/\d{4}/);
+            return match ? match[0] : "";
+        }
+
+        function process6ColumnData(rows) {
+            const libraryGroups = {}; 
+            
+            rows.forEach(row => {
+                if (!row[0] || row[0].toLowerCase() === 'title') return;
+                
+                let cleanTitle = row[0].trim();
+                let cleanYear = extractCleanYear(row[1]);
+                
+                let formats = [];
+                if(row[2] && row[2].trim().length > 0) formats.push("4K");
+                if(row[3] && row[3].trim().length > 0) formats.push("Blu-ray");
+                if(row[4] && row[4].trim().length > 0) formats.push("iTunes");
+                let formatString = formats.join(", ");
+                
+                // NEW: ID COLUMN (Col 5)
+                let manualId = (row[5] && row[5].trim().length > 0) ? row[5].trim() : null;
+
+                // KEY LOGIC: Use Manual ID if present, otherwise Title+Year
+                let key = manualId ? `ID_${manualId}` : normalizeKey(cleanTitle);
+
+                if (!libraryGroups[key]) libraryGroups[key] = [];
+                libraryGroups[key].push({
+                    title: cleanTitle,
+                    year: cleanYear,
+                    format: formatString,
+                    manualId: manualId, // STORE THE ID
+                    tmdbId: null, poster: null
+                });
+            });
+
+            allMovies = [];
+            
+            Object.values(libraryGroups).forEach(group => {
+                const uniqueInGroup = [];
+                group.forEach(movie => {
+                    let merged = false;
+                    for (let existing of uniqueInGroup) {
+                        // FORCE MERGE if Manual IDs match
+                        if (movie.manualId && existing.manualId && movie.manualId === existing.manualId) {
+                            merged = true; // Skip strict checks
+                        }
+                        // Standard Merge
+                        else if (!movie.year || !existing.year || movie.year === existing.year) {
+                            merged = true;
+                        }
+
+                        if (merged) {
+                            const combined = new Set((existing.format + ", " + movie.format).split(", ").filter(x=>x));
+                            existing.format = Array.from(combined).join(", ");
+                            if (!existing.year && movie.year) existing.year = movie.year;
+                            break; 
+                        }
+                    }
+                    if (!merged) uniqueInGroup.push(movie);
+                });
+                allMovies.push(...uniqueInGroup);
+            });
+
+            masterFilterList = allMovies;
+            activeList = allMovies; 
+
+            document.getElementById('count').innerText = `${activeList.length} TITLES`;
+            document.getElementById('count').classList.remove('opacity-0');
+            sortMovies('title_asc');
+            statusLog.innerText = `Ready. ${activeList.length} items.`; 
+        }
+
+        // --- SORTING & FILTERING ---
+        function sortTitleNormalizer(title) { return title.toLowerCase().replace(/^(the|a|an)\s+/, '').trim(); }
+        window.sortMovies = function(sortType) {
+            const [field, direction] = sortType.split('_');
+            masterFilterList.sort((a, b) => {
+                let valA, valB;
+                if (field === 'title') { valA = sortTitleNormalizer(a.title); valB = sortTitleNormalizer(b.title); } 
+                else if (field === 'year') { valA = parseInt(a.year)||0; valB = parseInt(b.year)||0; if(valA===valB) return sortTitleNormalizer(a.title) < sortTitleNormalizer(b.title) ? -1 : 1;} 
+                else if (field === 'rating') { valA = a.vote_average||0; valB = b.vote_average||0; }
+                if (valA < valB) return direction === 'asc' ? -1 : 1;
+                if (valA > valB) return direction === 'asc' ? 1 : -1;
+                return 0; 
+            });
+            document.getElementById('search').value = '';
+            activeList = masterFilterList;
+            document.getElementById('grid').innerHTML = '';
+            displayCount = 0; visibleList = [];
+            loadBatch();
+        }
+
+        window.filterMovies = function(filter, btn) {
+            if (filter === 'ALL') masterFilterList = allMovies;
+            else {
+                masterFilterList = allMovies.filter(m => {
+                    const f = m.format.toLowerCase();
+                    if (filter === '4K') return f.includes('4k');
+                    if (filter === 'BLU') return f.includes('blu') || f.includes('blu-ray');
+                    if (filter === 'APPLE') return f.includes('itunes') || f.includes('apple') || f.includes('digital');
+                    return false;
+                });
+            }
+            sortMovies(document.getElementById('sort').value); 
+            document.querySelectorAll('#filters button').forEach(b => b.classList.remove('bg-red-600', 'text-white', 'shadow-lg'));
+            if (btn) btn.classList.add('bg-red-600', 'text-white', 'shadow-lg');
+        }
+
+        document.getElementById('search').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            document.getElementById('grid').innerHTML = ''; displayCount = 0;
+            activeList = masterFilterList.filter(m => m.title.toLowerCase().includes(term));
+            document.getElementById('count').innerText = `${activeList.length} TITLES`;
+            visibleList = []; loadBatch();
+        });
+
+        window.onscroll = () => { if (displayCount < activeList.length && (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) loadBatch(); };
+
+        function loadBatch() {
+            if (isLoading || displayCount >= activeList.length) return;
+            isLoading = true;
+            document.getElementById('loader').classList.remove('hidden');
+
+            const batch = activeList.slice(displayCount, displayCount + BATCH);
+            const grid = document.getElementById('grid');
+            let promises = [];
+            
+            batch.forEach(movie => {
+                if (movie.tmdbId !== null && movie.poster !== null) { createCard(movie, grid); return; }
+                
+                // V47 FETCH LOGIC: USE MANUAL ID IF AVAILABLE
+                let url;
+                if (movie.manualId) {
+                    url = `https://api.themoviedb.org/3/movie/${movie.manualId}?api_key=${API_KEY}`;
+                } else {
+                    url = `https://api.themoviedb.org/3/search/movie?api_key=${API_KEY}&query=${encodeURIComponent(movie.title)}&year=${movie.year}`;
+                }
+
+                const fetchPromise = fetch(url)
+                    .then(r => r.json())
+                    .then(d => {
+                        let tmdb = null;
+                        
+                        // IF we used Manual ID, d is the movie object directly
+                        if (movie.manualId) {
+                            if (d.id) tmdb = d; 
+                        } 
+                        // IF we searched, d is a search result
+                        else if (d.results?.[0]) {
+                            tmdb = d.results[0];
+                        }
+
+                        if (tmdb) {
+                            movie.tmdbId = tmdb.id; 
+                            movie.poster = tmdb.poster_path; 
+                            movie.release_date = tmdb.release_date; 
+                            movie.vote_average = tmdb.vote_average;
+                            if (movie.poster) createCard(movie, grid);
+                        } else { movie.tmdbId = -1; movie.poster = null; }
+                    })
+                    .catch(() => { movie.tmdbId = -1; movie.poster = null; });
+                    
+                promises.push(fetchPromise);
+            });
+
+            Promise.allSettled(promises).finally(() => { 
+                displayCount += BATCH; 
+                isLoading = false; 
+                setTimeout(() => document.getElementById('loader').classList.add('hidden'), 500); 
+            });
+        }
+
+        function generateBadges(formatString) {
+            const parts = (formatString || '').split(/[,\/]/);
+            let html = '';
+            const types = new Set();
+            parts.forEach(p => {
+                const s = p.trim().toLowerCase();
+                if (s.includes('4k')) types.add('4k');
+                else if (s.includes('blu')) types.add('blu');
+                else if (s.includes('apple') || s.includes('itunes')) types.add('apple');
+                else if (s.includes('dvd')) types.add('dvd');
+            });
+            if(types.has('4k')) html += `<span class="badge badge-4k">4K UHD</span>`;
+            if(types.has('blu')) html += `<span class="badge badge-blu">BLU-RAY</span>`;
+            if(types.has('apple')) html += `<span class="badge badge-apple"><i class="fab fa-apple"></i> APPLE</span>`;
+            if(types.has('dvd')) html += `<span class="badge badge-dvd">DVD</span>`;
+            return html;
+        }
+
+        function createCard(movie, container) {
+            visibleList.push(movie);
+            const index = visibleList.length - 1;
+            const div = document.createElement('div');
+            div.className = 'card group';
+            div.innerHTML = `
+                <div class="relative aspect-[2/3] bg-[#222]">
+                    <img src="https://image.tmdb.org/t/p/w342${movie.poster}" class="w-full h-full object-cover transition-opacity duration-500 opacity-0" onload="this.classList.remove('opacity-0')" onerror="this.src='https://via.placeholder.com/342x513/1a1a1a/808080?text=No+Poster'">
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><i class="fas fa-expand text-white text-3xl drop-shadow-lg"></i></div>
+                </div>
+                <div class="p-4">
+                    <h3 class="font-bold text-white text-sm truncate leading-tight">${movie.title}</h3>
+                    <div class="mt-2 flex flex-wrap gap-1">${generateBadges(movie.format)}</div>
+                </div>
+            `;
+            div.onclick = () => openModal(index);
+            container.appendChild(div);
+        }
+
+        async function openModal(index) {
+            currentIndex = index;
+            const movie = visibleList[index]; 
+            const m = document.getElementById('modal');
+            m.classList.remove('hidden');
+            document.getElementById('modalContent').scrollTop = 0;
+            document.getElementById('m-title').innerText = movie.title;
+            document.getElementById('m-badges').innerHTML = generateBadges(movie.format);
+            document.getElementById('m-poster').src = 'https://image.tmdb.org/t/p/w780' + (movie.poster || '');
+            document.getElementById('m-banner-backdrop').style.backgroundImage = 'none';
+            document.getElementById('m-director').innerText = "...";
+            document.getElementById('m-writer').innerText = "...";
+            document.getElementById('m-overview').innerText = "Loading details...";
+            
+            if (movie.tmdbId > 0) {
+                try {
+                    const res = await fetch(`https://api.themoviedb.org/3/movie/${movie.tmdbId}?api_key=${API_KEY}&append_to_response=credits`);
+                    if(!res.ok) throw new Error("API Error");
+                    const data = await res.json();
+                    updateModalContent(data, movie.year);
+                } catch(e) { 
+                    console.error(e); 
+                    updateModalContent({ overview: "Details could not be loaded.", credits: { crew: [] } }, movie.year);
+                }
+            } else { updateModalContent({ overview: "No match found.", credits: { crew: [] } }, movie.year); }
+        }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function changeMovie(d) { let i = currentIndex + d; if (i >= 0 && i < visibleList.length) openModal(i); }
+        function updateModalContent(data, localYear) {
+            if(data.backdrop_path) document.getElementById('m-banner-backdrop').style.backgroundImage = `url('https://image.tmdb.org/t/p/w1280${data.backdrop_path}')`;
+            document.getElementById('m-overview').innerText = data.overview || "No overview.";
+            const runtime = data.runtime ? `${Math.floor(data.runtime/60)}h ${data.runtime%60}m` : 'N/A';
+            document.getElementById('m-runtime').innerText = runtime;
+            document.getElementById('m-year').innerText = localYear || (data.release_date ? data.release_date.substring(0, 4) : 'N/A');
+            document.getElementById('m-rating').innerText = data.vote_average ? data.vote_average.toFixed(1) : 'NR';
+            const crew = data.credits?.crew;
+            
+            document.getElementById('m-director').innerText = crew?.find(m => m.job === 'Director')?.name || 'N/A';
+            document.getElementById('m-writer').innerText = crew?.find(m => ['Screenplay', 'Writer', 'Story', 'Author'].includes(m.job))?.name || 'N/A';
+            document.getElementById('m-composer').innerText = crew?.find(m => ['Original Music Composer', 'Music'].includes(m.job))?.name || 'N/A';
+            document.getElementById('m-genre').innerText = data.genres?.map(g => g.name).join(', ') || 'N/A';
+        }
+    </script>
+</body>
+</html>
